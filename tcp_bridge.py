@@ -26,6 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+# Note:
+# This script may leak greenlets and sockets if both sides of the bridge vanish without closing their connection. Do not use in production.
+# Contributions are always welcome!
+
 import gevent.monkey
 from gevent.pool import Pool
 gevent.monkey.patch_all()

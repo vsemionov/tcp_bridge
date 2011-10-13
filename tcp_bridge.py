@@ -26,8 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-# Note:
-# This script may leak greenlets and sockets if both sides of the bridge vanish without closing their connection. Do not use in production.
 # Contributions are always welcome!
 
 import gevent.monkey
@@ -36,11 +34,13 @@ gevent.monkey.patch_all()
 
 import sys
 import os
+import getopt
+from functools import partial
 import socket
 
 
 def usage():
-    print "Usage: %s local_host:local_port remote_host:remote_port" % os.path.basename(__file__)
+    print "Usage: %s [-b backlog] [-l local_timeout] [-r remote_timeout] local_host:local_port remote_host:remote_port" % os.path.basename(__file__)
 
 def unidir(sin, sout):
     while True:
@@ -49,9 +49,11 @@ def unidir(sin, sout):
             return
         sout.sendall(buff)
 
-def bridge(sock, remote_addr):
+def bridge(sock, remote_addr, timeouts):
     try:
-        rsock = socket.create_connection(remote_addr)
+        local_timeout, remote_timeout = timeouts
+        sock.settimeout(local_timeout)
+        rsock = socket.create_connection(remote_addr, timeout=remote_timeout)
         try:
             pool = Pool(2)
             pool.spawn(unidir, sock, rsock)
@@ -62,17 +64,23 @@ def bridge(sock, remote_addr):
     finally:
         sock.close()
 
-if len(sys.argv) != 3:
+try:
+    opts, (local, remote) = getopt.getopt(sys.argv[1:], "b:l:r:")
+except getopt.GetoptError:
     usage()
     sys.exit(2)
+options = {opt[1:]: arg for (opt, arg) in opts}
 
-get_addr = lambda arg: tuple(apply(*args) for args in zip((str, int), zip(arg.split(':'))))
+get_addr = lambda arg: tuple(apply(*args) for args in zip([str, int], zip(arg.split(':'))))
+get_timeout = lambda options, opt: apply(lambda t: float(t) if t else None, [options.get(opt)])
 
-local_addr, remote_addr = map(get_addr, sys.argv[1:3])
+backlog = int(options.get('b', 1024))
+local_timeout, remote_timeout = map(partial(get_timeout, options), ('l', 'r'))
+local_addr, remote_addr = map(get_addr, (local, remote))
 
 server_sock = socket.socket()
 server_sock.bind(local_addr)
-server_sock.listen(1024)
+server_sock.listen(backlog)
 while True:
     sock, addr = server_sock.accept()
-    gevent.spawn(bridge, sock, remote_addr)
+    gevent.spawn(bridge, sock, remote_addr, (local_timeout, remote_timeout))

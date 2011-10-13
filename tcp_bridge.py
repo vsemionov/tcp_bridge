@@ -79,6 +79,7 @@ local_timeout, remote_timeout = map(partial(get_timeout, options), ('l', 'r'))
 local_addr, remote_addr = map(get_addr, (local, remote))
 
 server_sock = socket.socket()
+server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_sock.bind(local_addr)
 server_sock.listen(backlog)
 while True:

@@ -19,8 +19,6 @@ def unidir(sin, sout):
     while True:
         buff = sin.recv(8192)
         if not buff:
-            sout.close()
-            sin.close()
             return
         sout.sendall(buff)
 

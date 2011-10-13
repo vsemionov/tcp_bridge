@@ -42,9 +42,6 @@ import socket
 def usage():
     print "Usage: %s local_host:local_port remote_host:remote_port" % os.path.basename(__file__)
 
-def get_addr(arg):
-    return tuple(apply(*args) for args in zip((str, int), zip(arg.split(':'))))
-
 def unidir(sin, sout):
     while True:
         buff = sin.recv(8192)
@@ -68,6 +65,8 @@ def bridge(sock, remote_addr):
 if len(sys.argv) != 3:
     usage()
     sys.exit(2)
+
+get_addr = lambda arg: tuple(apply(*args) for args in zip((str, int), zip(arg.split(':'))))
 
 local_addr, remote_addr = map(get_addr, sys.argv[1:3])
 
